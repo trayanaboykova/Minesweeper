@@ -32,6 +32,40 @@ public class Main {
             }
         }
 
+        // calculate numbers for non-mine cells
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (field[i][j] == 'X') {
+                    continue; // skip mines
+                }
+
+                int count = 0;
+
+                // check all 8 neighbors
+                for (int di = -1; di <= 1; di++) {
+                    for (int dj = -1; dj <= 1; dj++) {
+                        if (di == 0 && dj == 0) {
+                            continue; // skip self
+                        }
+
+                        int ni = i + di;
+                        int nj = j + dj;
+
+                        // stay inside the 9x9 field
+                        if (ni >= 0 && ni < 9 && nj >= 0 && nj < 9) {
+                            if (field[ni][nj] == 'X') {
+                                count++;
+                            }
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    field[i][j] = (char) ('0' + count);
+                }
+            }
+        }
+
         // print the field
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
