@@ -5,6 +5,8 @@ import java.util.Scanner;
 
 public class Main {
 
+    private static final int SIZE = 9;
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         Random random = new Random();
@@ -12,49 +14,117 @@ public class Main {
         System.out.print("How many mines do you want on the field? ");
         int mines = scanner.nextInt();
 
-        // Logical field: contains 'X' (mines), '.', and digits '1'..'8'
-        char[][] field = new char[9][9];
+        // Logical field: will contain 'X' (mines), '.', and digits '1'..'8'
+        char[][] field = new char[SIZE][SIZE];
 
-        // 1) Fill field with safe cells
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
+        // Initially, no mines placed, everything is '.' (empty)
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
                 field[i][j] = '.';
             }
         }
 
-        // 2) Place mines randomly
+        // Visible field: what the player sees
+        // Initially all unexplored cells: '.'
+        char[][] visible = new char[SIZE][SIZE];
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                visible[i][j] = '.';
+            }
+        }
+
+        boolean firstMove = true;
+        boolean gameOver = false;
+
+        printField(visible);
+
+        while (!gameOver) {
+            System.out.print("Set/unset mines marks or claim a cell as free: ");
+            int x = scanner.nextInt();  // column (1..9)
+            int y = scanner.nextInt();  // row (1..9)
+            String command = scanner.next(); // "mine" or "free"
+
+            int row = y - 1;
+            int col = x - 1;
+
+            if ("mine".equals(command)) {
+                // Toggle mark only on unexplored cells ('.' or '*')
+                if (visible[row][col] == '*') {
+                    visible[row][col] = '.';
+                } else if (visible[row][col] == '.') {
+                    visible[row][col] = '*';
+                }
+                printField(visible);
+
+                if (hasWon(field, visible, mines)) {
+                    System.out.println("Congratulations! You found all the mines!");
+                    gameOver = true;
+                }
+
+            } else if ("free".equals(command)) {
+
+                // First free: generate mines so this cell is guaranteed not a mine
+                if (firstMove) {
+                    placeMines(field, mines, row, col, random);
+                    calculateNumbers(field);
+                    firstMove = false;
+                }
+
+                // If we step on a mine -> reveal mines & lose
+                if (field[row][col] == 'X') {
+                    revealMines(field, visible);
+                    printField(visible);
+                    System.out.println("You stepped on a mine and failed!");
+                    gameOver = true;
+                } else {
+                    // Explore this cell and possibly expand
+                    exploreCell(field, visible, row, col);
+                    printField(visible);
+
+                    if (hasWon(field, visible, mines)) {
+                        System.out.println("Congratulations! You found all the mines!");
+                        gameOver = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Place mines randomly, making sure (safeRow, safeCol) is not a mine
+    private static void placeMines(char[][] field, int mines, int safeRow, int safeCol, Random random) {
         int placed = 0;
         while (placed < mines) {
-            int r = random.nextInt(9);
-            int c = random.nextInt(9);
+            int r = random.nextInt(SIZE);
+            int c = random.nextInt(SIZE);
+
+            if (r == safeRow && c == safeCol) {
+                continue; // don't place a mine on the first free cell
+            }
 
             if (field[r][c] != 'X') {
                 field[r][c] = 'X';
                 placed++;
             }
         }
+    }
 
-        // 3) Calculate numbers for non-mine cells
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
+    // Fill numbers for non-mine cells
+    private static void calculateNumbers(char[][] field) {
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
                 if (field[i][j] == 'X') {
-                    continue; // skip mines
+                    continue;
                 }
 
                 int count = 0;
-
-                // check all 8 neighbors
                 for (int di = -1; di <= 1; di++) {
                     for (int dj = -1; dj <= 1; dj++) {
-                        if (di == 0 && dj == 0) {
-                            continue; // skip self
-                        }
+                        if (di == 0 && dj == 0) continue;
 
                         int ni = i + di;
                         int nj = j + dj;
 
-                        // stay inside the 9x9 field
-                        if (ni >= 0 && ni < 9 && nj >= 0 && nj < 9) {
+                        if (ni >= 0 && ni < SIZE && nj >= 0 && nj < SIZE) {
                             if (field[ni][nj] == 'X') {
                                 count++;
                             }
@@ -64,90 +134,104 @@ public class Main {
 
                 if (count > 0) {
                     field[i][j] = (char) ('0' + count);
-                }
-            }
-        }
-
-        // 4) Visible field: what the player actually sees
-        //    - digits are shown
-        //    - other cells are '.' at the start
-        char[][] visible = new char[9][9];
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (Character.isDigit(field[i][j])) {
-                    visible[i][j] = field[i][j];  // show numbers
                 } else {
-                    visible[i][j] = '.';          // hidden (could be mine or empty)
+                    field[i][j] = '.'; // explicitly empty
+                }
+            }
+        }
+    }
+
+    // Explore a cell: if it's empty ('.'), flood-fill; if number, reveal only it
+    private static void exploreCell(char[][] field, char[][] visible, int row, int col) {
+        // If already explored or marked as mine, we still consider exploring:
+        // marks in the expansion area will be overwritten (as per spec)
+
+        if (visible[row][col] == '/' || Character.isDigit(visible[row][col])) {
+            return; // already explored
+        }
+
+        if (field[row][col] == '.') {
+            // Empty cell with no mines around -> '/'
+            visible[row][col] = '/';
+
+            // Explore neighbours recursively
+            for (int di = -1; di <= 1; di++) {
+                for (int dj = -1; dj <= 1; dj++) {
+                    if (di == 0 && dj == 0) continue;
+
+                    int ni = row + di;
+                    int nj = col + dj;
+
+                    if (ni >= 0 && ni < SIZE && nj >= 0 && nj < SIZE) {
+                        if (visible[ni][nj] == '.' || visible[ni][nj] == '*') {
+                            // If neighbour is empty, recurse; if number, reveal it
+                            if (field[ni][nj] == '.') {
+                                exploreCell(field, visible, ni, nj);
+                            } else if (Character.isDigit(field[ni][nj])) {
+                                visible[ni][nj] = field[ni][nj];
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (Character.isDigit(field[row][col])) {
+            visible[row][col] = field[row][col];
+        }
+    }
+
+    // Reveal all mines on visible board
+    private static void revealMines(char[][] field, char[][] visible) {
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                if (field[i][j] == 'X') {
+                    visible[i][j] = 'X';
+                }
+            }
+        }
+    }
+
+    // Win condition:
+    // - Either all mines correctly marked and no extra marks
+    // - OR all non-mine cells are explored (no '.' or '*' on safe cells)
+    private static boolean hasWon(char[][] field, char[][] visible, int mineCount) {
+        boolean allMinesMarkedCorrectly = true;
+        boolean allSafeCellsOpened = true;
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                boolean isMine = field[i][j] == 'X';
+                char v = visible[i][j];
+
+                if (isMine) {
+                    if (v != '*') {
+                        allMinesMarkedCorrectly = false;
+                    }
+                } else {
+                    // safe cell
+                    if (v == '.' || v == '*') {
+                        allSafeCellsOpened = false;
+                    }
+                    if (v == '*') {
+                        allMinesMarkedCorrectly = false; // mark on a safe cell
+                    }
                 }
             }
         }
 
-        // 5) Print initial field
-        printField(visible);
-
-        // 6) Game loop: mark/unmark until all mines are correctly marked
-        while (true) {
-            System.out.print("Set/delete mines marks (x and y coordinates): ");
-            int x = scanner.nextInt(); // column
-            int y = scanner.nextInt(); // row
-
-            int row = y - 1;
-            int col = x - 1;
-
-            // If it's a number, cannot mark here
-            if (Character.isDigit(field[row][col])) {
-                System.out.println("There is a number here!");
-                continue;
-            }
-
-            // Toggle mark:
-            // '.' -> '*', '*' -> '.'
-            if (visible[row][col] == '*') {
-                visible[row][col] = '.';
-            } else {
-                visible[row][col] = '*';
-            }
-
-            printField(visible);
-
-            if (hasWon(field, visible)) {
-                System.out.println("Congratulations! You found all the mines!");
-                break;
-            }
-        }
+        return allMinesMarkedCorrectly || allSafeCellsOpened;
     }
 
     // Print field with coordinate grid
     private static void printField(char[][] visible) {
         System.out.println(" |123456789|");
         System.out.println("-|---------|");
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < SIZE; i++) {
             System.out.print((i + 1) + "|");
-            for (int j = 0; j < 9; j++) {
+            for (int j = 0; j < SIZE; j++) {
                 System.out.print(visible[i][j]);
             }
             System.out.println("|");
         }
         System.out.println("-|---------|");
-    }
-
-    // Win condition:
-    // - all mines ('X') are marked with '*'
-    // - no non-mine cells are marked with '*'
-    private static boolean hasWon(char[][] field, char[][] visible) {
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                boolean isMine = field[i][j] == 'X';
-                boolean isMarked = visible[i][j] == '*';
-
-                if (isMine && !isMarked) {
-                    return false; // unmarked mine
-                }
-                if (!isMine && isMarked) {
-                    return false; // extra mark on a safe cell
-                }
-            }
-        }
-        return true;
     }
 }
