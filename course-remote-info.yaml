@@ -3,20 +3,20 @@ hyperskill_project:
   ide_files: https://hyperskill.org/api/projects/77/additional-files/additional_files.json
   is_template_based: false
   use_ide: true
-update_date: "Wed, 03 Dec 2025 12:33:58 UTC"
+update_date: "Fri, 30 Jan 2026 14:33:04 UTC"
 stages:
   - id: 426
     step: 7200
-    is_completed: false
+    is_completed: true
   - id: 427
     step: 7201
-    is_completed: false
+    is_completed: true
   - id: 428
     step: 7202
-    is_completed: false
+    is_completed: true
   - id: 429
     step: 7203
-    is_completed: false
+    is_completed: true
   - id: 430
     step: 7204
     is_completed: true
@@ -82,10 +82,10 @@ topics:
       theory_id: 5504
     - title: Multidimensional array
       theory_id: 1933
-    - title: Debugging overview
-      theory_id: 14368
     - title: IntelliJ IDEA
       theory_id: 37202
+    - title: Debugging overview
+      theory_id: 14368
     - title: Run and debug with IntelliJ IDEA
       theory_id: 37206
     - title: Debugging simple constructs
@@ -107,8 +107,8 @@ topics:
       theory_id: 3614
     - title: IntelliJ IDEA basics
       theory_id: 5819
-    - title: JetBrains Academy plugin
-      theory_id: 5839
+    - title: Hyperskill Academy plugin
+      theory_id: 53354
     - title: Random class
       theory_id: 4910
     - title: Defining classes

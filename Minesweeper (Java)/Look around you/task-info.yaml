@@ -4,7 +4,7 @@ files:
     visible: true
     learner_created: false
   - name: test/MinesweeperTest.java
-    visible: false
+    visible: true
     learner_created: false
 feedback_link: https://hyperskill.org/projects/77/stages/428/implement#comment
 status: Solved
